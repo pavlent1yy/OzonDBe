@@ -1,5 +1,6 @@
 import uuid
 
+import psycopg
 import pytest
 
 from ozon_sync import db, runner
@@ -96,9 +97,15 @@ def test_db_error_rolls_back_only_that_table(items):
 
 
 def test_interrupted_runs_closed(items):
-    old = db.log_start(items, uuid.uuid4(), "items")
-    items.execute("UPDATE sync_log SET started_at = now() - interval '7 hours' WHERE id = %s", (old,))
-    fresh = db.log_start(items, uuid.uuid4(), "items")
+    running = db.log_start(items, uuid.uuid4(), "items")
+    done = db.log_start(items, uuid.uuid4(), "items")
+    db.log_finish(items, done, status="ok")
     assert db.close_interrupted(items) == 1
     rows = dict(items.execute("SELECT id, status FROM sync_log").fetchall())
-    assert rows == {old: "error", fresh: "running"}
+    assert rows == {running: "error", done: "ok"}
+
+
+def test_second_cycle_cannot_take_lock(pg):
+    with psycopg.connect(pg.info.dsn, password=pg.info.password, autocommit=True) as other:
+        assert db.try_lock(pg)
+        assert not db.try_lock(other)

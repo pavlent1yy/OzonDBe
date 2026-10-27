@@ -14,13 +14,29 @@ def connect(settings: Settings) -> psycopg.Connection:
     return psycopg.connect(settings.database_url, autocommit=True, connect_timeout=10)
 
 
-def close_interrupted(conn: psycopg.Connection, older_than_hours: int = 6) -> int:
+SYNC_LOCK_ID = 7_316_200_501
+
+
+def try_lock(conn: psycopg.Connection) -> bool:
+    return conn.execute("SELECT pg_try_advisory_lock(%s)", (SYNC_LOCK_ID,)).fetchone()[0]
+
+
+def close_interrupted(conn: psycopg.Connection) -> int:
     return conn.execute(
         """UPDATE sync_log SET status = 'error', finished_at = now(),
            error = 'запуск прерван: процесс остановился до завершения'
-           WHERE status = 'running' AND started_at < now() - make_interval(hours => %s)""",
-        (older_than_hours,),
+           WHERE status = 'running'"""
     ).rowcount
+
+
+def ensure_ro_role(conn: psycopg.Connection, password: str) -> None:
+    exists = conn.execute("SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = 'analytics_ro')").fetchone()[0]
+    action = "ALTER" if exists else "CREATE"
+    with conn.transaction():
+        conn.execute(sql.SQL(action + " ROLE analytics_ro LOGIN PASSWORD {}").format(sql.Literal(password)))
+        conn.execute("GRANT USAGE ON SCHEMA public TO analytics_ro")
+        conn.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_ro")
+        conn.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_ro")
 
 
 def log_start(conn: psycopg.Connection, run_id: uuid.UUID, table_name: str) -> int:

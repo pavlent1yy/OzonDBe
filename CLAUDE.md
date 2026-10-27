@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Состояние
 
-ТЗ: `docs/ТЗ остатки Ozon → Google Таблица + Telegram.docx`. Название файла устарело, внутри ТЗ на выгрузку в PostgreSQL. Решено: Postgres служит источником правды, плюс отдельным шагом выгружаем остатки в Google Таблицу. Все этапы плана готовы: 9 загрузчиков, расписание, Telegram, выгрузка в Sheets, тесты, README.
+ТЗ: `docs/ТЗ выгрузка Ozon → PostgreSQL + Telegram.docx`. Решено: Postgres служит источником правды, плюс отдельным шагом выгружаем остатки в Google Таблицу. Все этапы плана готовы: 9 загрузчиков, расписание, Telegram, выгрузка в Sheets, тесты, README.
 
 ## Команды
 
@@ -22,7 +22,7 @@ uv run ozon-sync ping                 # проверить доступ к Ozon 
 docker compose up --build
 ```
 
-Миграции пишутся на raw SQL через `op.execute`, без SQLAlchemy-моделей. Если задан `ANALYTICS_RO_PASSWORD`, миграция 0001 создаёт роль `analytics_ro`.
+Миграции пишутся на raw SQL через `op.execute`, без SQLAlchemy-моделей. Роль `analytics_ro` создаёт/обновляет `ozon-sync ro-role` при каждом старте контейнера, если задан `ANALYTICS_RO_PASSWORD`.
 
 ## Что делаем
 
@@ -34,8 +34,9 @@ docker compose up --build
 
 - `ozon_sync/loaders/`: каждая таблица описывается `Loader(table, key, columns, fetch, depends)`. `fetch(ctx)` отдаёт dict с колонками и `raw`. Новый загрузчик регистрируется в `loaders.registry()`, плюс к нему нужна миграция.
 - Режим песочницы: при `OZON_ENV=sandbox` запускаются только загрузчики с `sandbox=True` (`ozon_products` без `/v3/product/info/list`, `ozon_stock_management`), остальные пропускаются в `service.available_loaders`. Песочница поддерживает только эти 2 метода, отдаёт токен в form-urlencoded и стоит за антибот-редиректом 307.
-- Режим мока: `OZON_ENV=mock` + `node ozon-sandbox-mock.js` (localhost:8080, авторизация как в prod, мок её не проверяет). Запускаются загрузчики с `mock=True`: всё, кроме способов доставки и акций.
+- Режим мока: `OZON_ENV=mock` + `node tools/ozon-sandbox-mock.js` (localhost:8080, в Docker `--profile mock` и `http://mock:8080`, авторизация как в prod, мок её не проверяет). Запускаются загрузчики с `mock=True`: всё, кроме способов доставки и акций.
 - Пути методов берутся через `ctx.path(default)`. В конфиге их можно переопределить через `OZON_METHOD_OVERRIDES` (JSON `{"/v1/x": "/v2/x"}`), не трогая код.
+- `run_cycle` берёт `pg_try_advisory_lock`: второй параллельный цикл (ручной + плановый) сразу выходит. Под локом все `running` в `sync_log` закрываются как прерванные.
 - `runner.run_table` сначала целиком материализует `fetch` (API не дёргается внутри транзакции), затем вызывает `db.sync_table`. Тот кладёт строки через COPY во временную таблицу, делает upsert и помечает `is_deleted` в одной транзакции.
 
 ## Архитектурные инварианты (из ТЗ)

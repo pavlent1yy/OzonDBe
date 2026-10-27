@@ -36,6 +36,9 @@ def run_cycle(
     started = time.monotonic()
     try:
         with db.connect(settings) as conn:
+            if not db.try_lock(conn):
+                log.warning("sync_already_running", message="синхронизация уже идёт, повторный запуск пропущен")
+                return False
             interrupted = db.close_interrupted(conn)
             if interrupted:
                 log.warning("interrupted_runs_closed", count=interrupted)

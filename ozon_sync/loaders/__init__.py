@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import psycopg
+from psycopg import sql
 
 from ozon_sync.ozon.client import OzonClient
 
@@ -36,7 +37,8 @@ class Loader:
 
 
 def active_ids(ctx: Context, table: str, column: str) -> list[int]:
-    return [r[0] for r in ctx.conn.execute(f"SELECT {column} FROM {table} WHERE NOT is_deleted ORDER BY 1")]
+    query = sql.SQL("SELECT {} FROM {} WHERE NOT is_deleted ORDER BY 1").format(sql.Identifier(column), sql.Identifier(table))
+    return [r[0] for r in ctx.conn.execute(query)]
 
 
 def chunks(items: list[Any], size: int) -> Iterable[list[Any]]:

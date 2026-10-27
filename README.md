@@ -137,7 +137,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Контейнер `app` применяет миграции и запускает планировщик. Postgres наружу не публикуется.
+Контейнер `app` применяет миграции, создаёт роль для аналитики и запускает планировщик.
+Postgres доступен только с самого сервера (`127.0.0.1:5432`).
 `DATABASE_URL` и путь к ключу Google внутри контейнера задаются в `docker-compose.yml`,
 значения из `.env` для них используются только при локальном запуске.
 `.env` и `secrets/` в образ не копируются, ключ Google подключается томом только на чтение
@@ -175,11 +176,11 @@ OZON_SANDBOX_CLIENT_SECRET=...
 только данные из списка товаров) и `ozon_stock_management`. Остальные таблицы пропускаются
 без ошибок и алертов
 
-Для локальной отладки без доступа к Ozon есть мок `ozon-sandbox-mock.js` (Node.js, без зависимостей).
+Для локальной отладки без доступа к Ozon есть мок `tools/ozon-sandbox-mock.js` (Node.js, без зависимостей).
 Он отдаёт 200 товаров, 2 склада, цены и остатки, первые 13 товаров совпадают с песочницей:
 
 ```bash
-node ozon-sandbox-mock.js          # PORT=8080 COUNT=200 SEED=42 DRIFT=1
+node tools/ozon-sandbox-mock.js    # PORT=8080 COUNT=200 SEED=42 DRIFT=1
 ```
 
 ```dotenv
@@ -189,6 +190,12 @@ OZON_MOCK_URL=http://localhost:8080
 
 В режиме `mock` синхронизируются склады, товары, цены, остатки FBS по складам и остатки FBO/FBS.
 Способов доставки и акций в моке нет, эти таблицы пропускаются
+
+В Docker мок поднимается отдельным сервисом, а `localhost` внутри контейнера указывает на сам контейнер:
+
+```bash
+docker compose --profile mock up -d --build   # в .env: OZON_ENV=mock, OZON_MOCK_URL=http://mock:8080
+```
 
 Если Ozon сменил версию метода, путь можно подменить без правки кода:
 
@@ -204,8 +211,11 @@ SYNC_TIMEZONE=Europe/Moscow
 STALE_AFTER_HOURS=12
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
-TELEGRAM_SUMMARY=true
+TELEGRAM_SUMMARY=false
 ```
+
+По умолчанию в Telegram уходят только ошибки и таблицы, которые давно не обновлялись.
+Сводка после каждого цикла (`TELEGRAM_SUMMARY=true`) — это 3 сообщения в день, даже когда всё в порядке
 
 ### Google Таблица
 
@@ -222,16 +232,21 @@ GSHEET_ID=...
 
 ### Доступ к базе для аналитики
 
-Если задан `ANALYTICS_RO_PASSWORD`, миграция создаёт пользователя `analytics_ro` только на чтение.
-Пароль нужно задать до первого запуска: роль создаётся первой миграцией.
-Если база уже создана, роль можно добавить вручную:
+Если задан `ANALYTICS_RO_PASSWORD`, при каждом старте контейнера создаётся (или получает новый пароль)
+пользователь `analytics_ro` только на чтение. Пароль можно задать или сменить в любой момент и перезапустить `app`:
 
-```sql
-CREATE ROLE analytics_ro LOGIN PASSWORD '...';
-GRANT USAGE ON SCHEMA public TO analytics_ro;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_ro;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_ro;
+```bash
+docker compose up -d app
 ```
+
+Postgres слушает только `127.0.0.1:5432` на сервере и наружу не открыт. Подключаться через SSH-туннель:
+
+```bash
+ssh -N -L 5432:localhost:5432 user@server
+psql "postgresql://analytics_ro:ПАРОЛЬ@localhost:5432/ozon"
+```
+
+DBeaver, DataGrip и Power BI умеют поднимать такой туннель сами (вкладка SSH в настройках подключения)
 
 ## Что делать при алерте
 

@@ -37,7 +37,8 @@ class FakeConn:
     def __init__(self, ids: dict[str, list[int]]):
         self.ids = ids
 
-    def execute(self, query: str):
+    def execute(self, query):
+        query = query if isinstance(query, str) else repr(query)
         match = next((k for k in self.ids if k in query), None)
         return [(i,) for i in self.ids.get(match, [])]
 

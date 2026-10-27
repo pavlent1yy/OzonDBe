@@ -17,6 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("ping", help="проверить доступ к Ozon API")
     sub.add_parser("schedule", help="запускать sync --all по расписанию")
+    sub.add_parser("ro-role", help="создать или обновить роль analytics_ro из ANALYTICS_RO_PASSWORD")
     sync = sub.add_parser("sync", help="синхронизировать таблицы")
     target = sync.add_mutually_exclusive_group(required=True)
     target.add_argument("--all", action="store_true")
@@ -33,6 +34,16 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             client.close()
         log.info("ping_ok", env=settings.ozon_env, warehouses=len(resp.get("result", [])))
+        return 0
+
+    if args.cmd == "ro-role":
+        password = settings.analytics_ro_password.get_secret_value()
+        if not password:
+            log.info("ro_role_skipped", reason="ANALYTICS_RO_PASSWORD не задан")
+            return 0
+        with service.db.connect(settings) as conn:
+            service.db.ensure_ro_role(conn, password)
+        log.info("ro_role_ready", role="analytics_ro")
         return 0
 
     if args.cmd == "schedule":

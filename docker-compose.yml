@@ -12,6 +12,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
 
   app:
     build: .
@@ -25,6 +27,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  mock:
+    image: node:22-alpine
+    profiles: ["mock"]
+    working_dir: /mock
+    command: node ozon-sandbox-mock.js
+    volumes:
+      - ./tools:/mock:ro
 
 volumes:
   pgdata:

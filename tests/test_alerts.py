@@ -127,6 +127,7 @@ def test_stale_checked_only_on_full_cycle(monkeypatch, selected, checks_stale):
 
     calls = []
     monkeypatch.setattr(service.db, "connect", lambda _: Conn())
+    monkeypatch.setattr(service.db, "try_lock", lambda conn: True)
     monkeypatch.setattr(service.db, "close_interrupted", lambda conn: 0)
     monkeypatch.setattr(service.runner, "run", lambda ctx, lds, *a: [TableResult(ld.table, "ok") for ld in lds])
     monkeypatch.setattr(service.alerts, "stale_tables", lambda *a: calls.append(a) or ["x"])

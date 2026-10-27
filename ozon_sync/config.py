@@ -28,8 +28,10 @@ class Settings(BaseSettings):
 
     telegram_bot_token: SecretStr = SecretStr("")
     telegram_chat_id: str = ""
-    telegram_summary: bool = True
+    telegram_summary: bool = False
     stale_after_hours: int = 12
+
+    analytics_ro_password: SecretStr = SecretStr("")
 
     gsheet_id: str = ""
     google_credentials_file: str = "/run/secrets/google-service-account.json"
