@@ -62,3 +62,15 @@ def pg():
     yield conn
     conn.execute("DROP SCHEMA test_sync CASCADE")
     conn.close()
+
+
+@pytest.fixture
+def migrated(pg, monkeypatch):
+    from alembic import command
+    from alembic.config import Config
+
+    sep = "&" if "?" in os.environ["TEST_DATABASE_URL"] else "?"
+    monkeypatch.setenv("DATABASE_URL", f"{os.environ['TEST_DATABASE_URL']}{sep}options=-csearch_path%3Dtest_sync")
+    monkeypatch.delenv("ANALYTICS_RO_PASSWORD", raising=False)
+    command.upgrade(Config(str(Path(__file__).parent.parent / "alembic.ini")), "head")
+    return pg

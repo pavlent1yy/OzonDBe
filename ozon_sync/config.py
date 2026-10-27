@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     telegram_summary: bool = True
     stale_after_hours: int = 12
 
+    gsheet_id: str = ""
+    google_credentials_file: str = "/run/secrets/google-service-account.json"
+
     @property
     def schedule_times(self) -> list[tuple[int, int]]:
         times = []

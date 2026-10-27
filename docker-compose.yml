@@ -17,6 +17,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
     depends_on:
       db:
         condition: service_healthy

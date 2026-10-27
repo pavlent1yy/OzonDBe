@@ -1,13 +1,17 @@
+import uuid
+
 import structlog
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from ozon_sync import alerts, db, runner
+from ozon_sync import alerts, db, runner, sheets
 from ozon_sync.config import Settings
 from ozon_sync.loaders import Context, registry
 from ozon_sync.ozon.client import OzonClient
 
 log = structlog.get_logger()
+
+SHEET_LOG_NAME = "gsheet"
 
 
 def run_cycle(
@@ -26,7 +30,10 @@ def run_cycle(
     try:
         with db.connect(settings) as conn:
             ctx = Context(client, conn, settings.ozon_method_overrides)
-            results = runner.run(ctx, runner.order(loaders, selected))
+            run_id = uuid.uuid4()
+            results = runner.run(ctx, runner.order(loaders, selected), run_id)
+            if settings.gsheet_id:
+                results.append(export_sheet(conn, settings, run_id))
 
             failed = [r for r in results if r.status != "ok"]
             if failed:
@@ -48,6 +55,20 @@ def run_cycle(
     finally:
         if own_client:
             client.close()
+
+
+def export_sheet(conn, settings: Settings, run_id: uuid.UUID) -> runner.TableResult:
+    log_id = db.log_start(conn, run_id, SHEET_LOG_NAME)
+    try:
+        written = sheets.export(conn, settings.gsheet_id, settings.google_credentials_file, settings.sync_timezone)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        db.log_finish(conn, log_id, status="error", error=error[:4000])
+        log.error("gsheet_failed", error=error)
+        return runner.TableResult(SHEET_LOG_NAME, "error", error=error)
+    db.log_finish(conn, log_id, status="ok", updated=written)
+    log.info("gsheet_ok", rows=written)
+    return runner.TableResult(SHEET_LOG_NAME, "ok", updated=written)
 
 
 def build_scheduler(settings: Settings) -> BlockingScheduler:
