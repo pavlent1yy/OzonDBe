@@ -11,7 +11,7 @@ from ozon_sync.config import Settings
 
 
 def connect(settings: Settings) -> psycopg.Connection:
-    return psycopg.connect(settings.database_url, autocommit=True)
+    return psycopg.connect(settings.database_url, autocommit=True, connect_timeout=10)
 
 
 def log_start(conn: psycopg.Connection, run_id: uuid.UUID, table_name: str) -> int:

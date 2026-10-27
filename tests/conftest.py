@@ -14,6 +14,13 @@ BASE = "https://ozon.test"
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    for name in list(os.environ):
+        if name.startswith(("OZON_", "TELEGRAM_", "SYNC_", "STALE_")):
+            monkeypatch.delenv(name)
+
+
 def fixture(name: str) -> dict:
     return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
 

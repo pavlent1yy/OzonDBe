@@ -1,9 +1,12 @@
 import logging
+import sys
 
 import structlog
 
 
 def setup_logging(level: str = "INFO") -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

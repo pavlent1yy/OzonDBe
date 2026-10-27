@@ -22,6 +22,22 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://ozon:ozon@localhost:5432/ozon"
     log_level: str = "INFO"
 
+    sync_schedule: str = "10:00,14:00,18:00"
+    sync_timezone: str = "Europe/Moscow"
+
+    telegram_bot_token: SecretStr = SecretStr("")
+    telegram_chat_id: str = ""
+    telegram_summary: bool = True
+    stale_after_hours: int = 12
+
+    @property
+    def schedule_times(self) -> list[tuple[int, int]]:
+        times = []
+        for part in self.sync_schedule.split(","):
+            hour, minute = part.strip().split(":")
+            times.append((int(hour), int(minute)))
+        return times
+
     @property
     def ozon_base_url(self) -> str:
         return self.ozon_sandbox_url if self.ozon_env == "sandbox" else self.ozon_prod_url

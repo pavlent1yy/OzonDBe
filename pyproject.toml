@@ -9,6 +9,8 @@ dependencies = [
     "structlog>=24.4",
     "alembic>=1.13",
     "sqlalchemy>=2.0",
+    "apscheduler>=3.11,<4",
+    "tzdata>=2026.5",
 ]
 
 [project.scripts]

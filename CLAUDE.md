@@ -15,6 +15,7 @@ uv run pytest tests/test_client.py::test_429_waits_retry_after
 TEST_DATABASE_URL=postgresql://... uv run pytest   # плюс тесты upsert на живом Postgres (иначе skip)
 uv run --with pgserver python -c "import pgserver; print(pgserver.get_server('.pg', cleanup_mode=None).get_uri())"  # Postgres без Docker
 uv run ozon-sync sync --all           # или --table ozon_products (можно несколько)
+uv run ozon-sync schedule             # планировщик (так стартует контейнер app)
 uv run alembic upgrade head           # миграции (DATABASE_URL из .env)
 uv run alembic upgrade head --sql     # посмотреть SQL без БД
 uv run ozon-sync ping                 # проверить доступ к Ozon API

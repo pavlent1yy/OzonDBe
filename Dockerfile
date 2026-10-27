@@ -11,4 +11,4 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
-CMD ["sh", "-c", "alembic upgrade head && ozon-sync sync --all"]
+CMD ["sh", "-c", "alembic upgrade head && ozon-sync schedule"]
