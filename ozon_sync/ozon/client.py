@@ -23,7 +23,9 @@ class OzonClient:
         clock: Callable[[], float] = time.monotonic,
     ):
         self.settings = settings
-        self.http = http or httpx.Client(base_url=settings.ozon_base_url, timeout=settings.ozon_timeout)
+        self.http = http or httpx.Client(
+            base_url=settings.ozon_base_url, timeout=settings.ozon_timeout, follow_redirects=True
+        )
         self.sleep = sleep
         self.clock = clock
         self._token: str | None = None
