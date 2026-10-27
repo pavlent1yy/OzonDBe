@@ -33,6 +33,7 @@ docker compose up --build
 ## Как устроено
 
 - `ozon_sync/loaders/`: каждая таблица описывается `Loader(table, key, columns, fetch, depends)`. `fetch(ctx)` отдаёт dict с колонками и `raw`. Новый загрузчик регистрируется в `loaders.registry()`, плюс к нему нужна миграция.
+- Режим песочницы: при `OZON_ENV=sandbox` запускаются только загрузчики с `sandbox=True` (`ozon_products` без `/v3/product/info/list`, `ozon_stock_management`), остальные пропускаются в `service.available_loaders`. Песочница поддерживает только эти 2 метода, отдаёт токен в form-urlencoded и стоит за антибот-редиректом 307.
 - Пути методов берутся через `ctx.path(default)`. В конфиге их можно переопределить через `OZON_METHOD_OVERRIDES` (JSON `{"/v1/x": "/v2/x"}`), не трогая код.
 - `runner.run_table` сначала целиком материализует `fetch` (API не дёргается внутри транзакции), затем вызывает `db.sync_table`. Тот кладёт строки через COPY во временную таблицу, делает upsert и помечает `is_deleted` в одной транзакции.
 

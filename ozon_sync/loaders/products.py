@@ -17,8 +17,10 @@ def fetch_products(ctx: Context) -> Iterable[Row]:
     )
     info_path = ctx.path("/v3/product/info/list")
     for batch in chunks(listed, INFO_BATCH):
-        resp = ctx.client.post(info_path, {"product_id": [str(p["product_id"]) for p in batch]})
-        info = {i["id"]: i for i in resp.get("items", [])}
+        info = {}
+        if not ctx.sandbox:
+            resp = ctx.client.post(info_path, {"product_id": [str(p["product_id"]) for p in batch]})
+            info = {i["id"]: i for i in resp.get("items", [])}
         for p in batch:
             details = info.get(p["product_id"], {})
             yield {
@@ -35,4 +37,5 @@ PRODUCTS = Loader(
     key=("product_id",),
     columns=("product_id", "offer_id", "name", "archived"),
     fetch=fetch_products,
+    sandbox=True,
 )

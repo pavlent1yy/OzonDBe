@@ -6,7 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from ozon_sync import alerts, db, runner, sheets
 from ozon_sync.config import Settings
-from ozon_sync.loaders import Context, registry
+from ozon_sync.loaders import Context, Loader, registry
 from ozon_sync.ozon.client import OzonClient
 
 log = structlog.get_logger()
@@ -20,9 +20,12 @@ def run_cycle(
     client: OzonClient | None = None,
     telegram: alerts.Telegram | None = None,
 ) -> bool:
-    loaders = registry()
+    loaders = available_loaders(settings)
     full = not selected
-    selected = selected or list(loaders)
+    skipped = [t for t in selected or [] if t not in loaders]
+    if skipped:
+        log.warning("tables_skipped_in_sandbox", tables=skipped)
+    selected = [t for t in selected if t in loaders] if selected else list(loaders)
     telegram = telegram or alerts.Telegram(settings)
     own_client = client is None
     client = client or OzonClient(settings)
@@ -55,6 +58,13 @@ def run_cycle(
     finally:
         if own_client:
             client.close()
+
+
+def available_loaders(settings: Settings) -> dict[str, Loader]:
+    loaders = registry()
+    if settings.ozon_env != "sandbox":
+        return loaders
+    return {name: ld for name, ld in loaders.items() if ld.sandbox}
 
 
 def export_sheet(conn, settings: Settings, run_id: uuid.UUID) -> runner.TableResult:

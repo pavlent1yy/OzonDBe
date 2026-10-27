@@ -18,6 +18,10 @@ class Context:
     def path(self, default: str) -> str:
         return self.method_overrides.get(default, default)
 
+    @property
+    def sandbox(self) -> bool:
+        return self.client.settings.ozon_env == "sandbox"
+
 
 @dataclass(frozen=True)
 class Loader:
@@ -27,6 +31,7 @@ class Loader:
     fetch: Callable[[Context], Iterable[Row]]
     depends: tuple[str, ...] = ()
     allow_empty: bool = False
+    sandbox: bool = False
 
 
 def active_ids(ctx: Context, table: str, column: str) -> list[int]:

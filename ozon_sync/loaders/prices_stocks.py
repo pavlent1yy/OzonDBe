@@ -112,4 +112,5 @@ STOCK_MANAGEMENT = Loader(
     columns=("product_id", "type", "offer_id", "sku", "present", "reserved"),
     fetch=fetch_stock_management,
     depends=("ozon_products",),
+    sandbox=True,
 )

@@ -137,3 +137,27 @@ def test_sheet_failure_does_not_touch_db(migrated, ozon_api, monkeypatch):
     assert run.pop("gsheet") == "error" and set(run.values()) == {"ok"}
     assert all(n > 0 for n in counts(migrated).values())
     assert any("gsheet" in m for m in tg.sent)
+
+
+def test_sandbox_runs_only_supported_tables(migrated, ozon_api):
+    ozon_api.post("/oauth/token").respond(
+        text="access_token=tok&expires_in=3600", headers={"content-type": "application/x-www-form-urlencoded"}
+    )
+    info = ozon_api.post("/v3/product/info/list")
+    info.reset()
+    settings = Settings(_env_file=None, ozon_env="sandbox")
+    client = OzonClient(settings, http=httpx.Client(base_url=BASE), sleep=lambda _: None)
+    tg = FakeTelegram()
+    assert service.run_cycle(settings, client=client, telegram=tg)
+    assert [r[0] for r in last_run(migrated)] == ["ozon_products", "ozon_stock_management"]
+    assert not info.called
+    assert migrated.execute("SELECT offer_id, name FROM ozon_products ORDER BY 1").fetchall() == [
+        ("136748", None), ("136749", None),
+    ]
+    assert not any("упало" in m or "не обновлялись" in m for m in tg.sent)
+
+
+def test_sandbox_skips_unsupported_table_request(migrated, ozon_api):
+    settings = Settings(_env_file=None, ozon_env="sandbox")
+    assert service.run_cycle(settings, ["ozon_actions"], client=object(), telegram=FakeTelegram())
+    assert migrated.execute("SELECT count(*) FROM sync_log").fetchone()[0] == 0
