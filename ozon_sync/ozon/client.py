@@ -1,6 +1,7 @@
 import time
 from collections.abc import Callable, Iterator
 from typing import Any
+from urllib.parse import parse_qsl
 
 import httpx
 import structlog
@@ -54,7 +55,10 @@ class OzonClient:
         )
         if resp.status_code != 200:
             raise OzonError(f"sandbox oauth failed: {resp.status_code} {resp.text[:500]}")
-        body = resp.json()
+        if "x-www-form-urlencoded" in resp.headers.get("content-type", ""):
+            body = dict(parse_qsl(resp.text))
+        else:
+            body = resp.json()
         self._token = body["access_token"]
         self._token_expires_at = self.clock() + float(body.get("expires_in", 3600)) - 60
 

@@ -103,6 +103,18 @@ def test_sandbox_oauth_token_cached():
 
 
 @respx.mock
+def test_sandbox_token_form_urlencoded():
+    respx.post(f"{BASE}/oauth/token").respond(
+        text="access_token=tok%2B1&expires_in=3600&token_type=bearer",
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    api = respx.post(f"{BASE}/x").respond(json={})
+    client, _ = make_client(env="sandbox")
+    client.post("/x")
+    assert api.calls.last.request.headers["Authorization"] == "Bearer tok+1"
+
+
+@respx.mock
 def test_sandbox_401_refreshes_token():
     token = respx.post(f"{BASE}/oauth/token").respond(json={"access_token": "tok", "expires_in": 3600})
     respx.post(f"{BASE}/x").mock(side_effect=[httpx.Response(401), httpx.Response(200, json={"ok": 1})])

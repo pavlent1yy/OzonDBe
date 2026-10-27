@@ -45,9 +45,15 @@ def fetch_prices(ctx: Context) -> Iterable[Row]:
 
 def active_skus(ctx: Context) -> list[int]:
     query = """
-        SELECT DISTINCT (s->>'sku')::bigint
-        FROM ozon_products p, jsonb_array_elements(p.raw->'info'->'sources') s
-        WHERE NOT p.is_deleted AND s->>'sku' IS NOT NULL
+        SELECT DISTINCT sku FROM (
+            SELECT (s->>'sku')::bigint AS sku
+            FROM ozon_products p
+            CROSS JOIN LATERAL jsonb_array_elements(coalesce(p.raw->'info'->'sources', '[]')) s
+            WHERE NOT p.is_deleted
+            UNION
+            SELECT (p.raw->'list'->>'sku')::bigint FROM ozon_products p WHERE NOT p.is_deleted
+        ) skus
+        WHERE sku IS NOT NULL AND sku > 0
         ORDER BY 1
     """
     return [r[0] for r in ctx.conn.execute(query)]
