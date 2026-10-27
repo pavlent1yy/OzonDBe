@@ -39,7 +39,7 @@ def chunks(items: list[Any], size: int) -> Iterable[list[Any]]:
 
 
 def registry() -> dict[str, Loader]:
-    from ozon_sync.loaders import prices_stocks, products, warehouses
+    from ozon_sync.loaders import actions, prices_stocks, products, warehouses
 
     loaders = [
         warehouses.WAREHOUSES,
@@ -48,5 +48,8 @@ def registry() -> dict[str, Loader]:
         prices_stocks.PRICES,
         prices_stocks.STOCKS_RFBS,
         prices_stocks.STOCK_MANAGEMENT,
+        actions.ACTIONS,
+        actions.ACTION_CANDIDATES,
+        actions.ACTION_PRODUCTS,
     ]
     return {ld.table: ld for ld in loaders}

@@ -57,12 +57,18 @@ class OzonClient:
         self._token_expires_at = self.clock() + float(body.get("expires_in", 3600)) - 60
 
     def post(self, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.request("POST", path, body or {})
+
+    def get(self, path: str) -> dict[str, Any]:
+        return self.request("GET", path)
+
+    def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         s = self.settings
         failures = 0
         throttled = 0
         while True:
             try:
-                resp = self.http.post(path, json=body or {}, headers=self._auth_headers())
+                resp = self.http.request(method, path, json=body, headers=self._auth_headers())
             except httpx.TransportError as e:
                 failures += 1
                 if failures > s.ozon_max_retries:

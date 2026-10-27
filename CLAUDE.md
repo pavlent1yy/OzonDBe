@@ -52,7 +52,7 @@ docker compose up --build
 
 ## Таблицы и методы API
 
-Версии методов предварительные, перед реализацией сверь их с docs.ozon.ru/api/seller (акции уже перешли на v2).
+Версии методов предварительные, сверяй их с docs.ozon.ru/api/seller. v1 candidates/products отключены 19.10.2026, новая логика акций v2 на живом API ещё не проверена.
 
 | Таблица | Метод | Ключ |
 |---|---|---|
@@ -62,9 +62,9 @@ docker compose up --build
 | ozon_product_prices | /v5/product/info/prices | product_id |
 | ozon_stocks_rfbs | /v1/product/info/stocks-by-warehouse/fbs | sku + warehouse_id |
 | ozon_stock_management | /v4/product/info/stocks | product_id + type |
-| ozon_actions | /v1/actions (v2) | action_id |
-| ozon_action_candidates | /v1/actions/candidates | action_id + product_id |
-| ozon_action_products | /v1/actions/products | action_id + product_id |
+| ozon_actions | GET /v1/actions | action_id |
+| ozon_action_candidates | /v2/actions/candidates | action_id + product_id |
+| ozon_action_products | /v2/actions/products | action_id + product_id |
 
 `sync_log`: id, run_id, table_name, started_at, finished_at, status (ok/error), rows_inserted, rows_updated, rows_deleted, error. Представление `sync_status` показывает по каждой таблице последнее успешное обновление и последнюю ошибку.
 
