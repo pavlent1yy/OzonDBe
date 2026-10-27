@@ -42,6 +42,7 @@ WAREHOUSES = Loader(
     key=("warehouse_id",),
     columns=("warehouse_id", "name", "is_rfbs", "status"),
     fetch=fetch_warehouses,
+    mock=True,
 )
 
 DELIVERY_METHODS = Loader(

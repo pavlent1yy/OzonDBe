@@ -144,3 +144,11 @@ def test_cycle_failure_alerts_when_db_down(monkeypatch):
     tg = FakeTelegram()
     assert service.run_cycle(settings(), client=object(), telegram=tg) is False
     assert len(tg.sent) == 1 and "синхронизация не выполнена" in tg.sent[0]
+
+
+def test_mock_env_runs_tables_supported_by_mock():
+    loaders = service.available_loaders(settings(ozon_env="mock"))
+    assert sorted(loaders) == [
+        "ozon_product_prices", "ozon_products", "ozon_stock_management", "ozon_stocks_rfbs", "ozon_warehouses",
+    ]
+    assert settings(ozon_env="mock").ozon_base_url == "http://localhost:8080"

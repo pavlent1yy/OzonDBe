@@ -72,7 +72,7 @@ TITLES = {
     "gsheet": "Google Таблица",
 }
 
-ENVS = {"sandbox": "песочница", "prod": "боевой кабинет"}
+ENVS = {"sandbox": "песочница", "prod": "боевой кабинет", "mock": "локальный мок"}
 
 ERROR_LIMIT = 300
 

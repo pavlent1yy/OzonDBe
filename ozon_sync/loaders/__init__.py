@@ -32,6 +32,7 @@ class Loader:
     depends: tuple[str, ...] = ()
     allow_empty: bool = False
     sandbox: bool = False
+    mock: bool = False
 
 
 def active_ids(ctx: Context, table: str, column: str) -> list[int]:

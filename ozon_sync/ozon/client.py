@@ -37,7 +37,7 @@ class OzonClient:
 
     def _auth_headers(self) -> dict[str, str]:
         s = self.settings
-        if s.ozon_env == "prod":
+        if s.ozon_env in ("prod", "mock"):
             return {"Client-Id": s.ozon_client_id, "Api-Key": s.ozon_api_key.get_secret_value()}
         if self._token is None or self.clock() >= self._token_expires_at:
             self._fetch_token()

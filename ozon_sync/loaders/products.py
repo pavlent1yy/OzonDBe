@@ -37,5 +37,6 @@ PRODUCTS = Loader(
     key=("product_id",),
     columns=("product_id", "offer_id", "name", "archived"),
     fetch=fetch_products,
+    mock=True,
     sandbox=True,
 )

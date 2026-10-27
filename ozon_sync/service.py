@@ -27,7 +27,7 @@ def run_cycle(
     full = not selected
     skipped = [t for t in selected or [] if t not in loaders]
     if skipped:
-        log.warning("tables_skipped_in_sandbox", tables=skipped)
+        log.warning("tables_skipped_in_env", tables=skipped)
     selected = [t for t in selected if t in loaders] if selected else list(loaders)
     telegram = telegram or alerts.Telegram(settings)
     own_client = client is None
@@ -70,9 +70,9 @@ def run_cycle(
 
 def available_loaders(settings: Settings) -> dict[str, Loader]:
     loaders = registry()
-    if settings.ozon_env != "sandbox":
+    if settings.ozon_env == "prod":
         return loaders
-    return {name: ld for name, ld in loaders.items() if ld.sandbox}
+    return {name: ld for name, ld in loaders.items() if getattr(ld, settings.ozon_env)}
 
 
 def export_sheet(conn, settings: Settings, run_id: uuid.UUID) -> runner.TableResult:

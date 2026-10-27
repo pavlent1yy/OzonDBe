@@ -95,6 +95,7 @@ PRICES = Loader(
     key=("product_id",),
     columns=("product_id", "offer_id", "price", "old_price", "min_price", "marketing_price", "currency_code"),
     fetch=fetch_prices,
+    mock=True,
     depends=("ozon_products",),
 )
 
@@ -103,6 +104,7 @@ STOCKS_RFBS = Loader(
     key=("sku", "warehouse_id"),
     columns=("sku", "warehouse_id", "product_id", "offer_id", "warehouse_name", "present", "reserved"),
     fetch=fetch_stocks_rfbs,
+    mock=True,
     depends=("ozon_warehouses", "ozon_products"),
 )
 
@@ -111,6 +113,7 @@ STOCK_MANAGEMENT = Loader(
     key=("product_id", "type"),
     columns=("product_id", "type", "offer_id", "sku", "present", "reserved"),
     fetch=fetch_stock_management,
+    mock=True,
     depends=("ozon_products",),
     sandbox=True,
 )
