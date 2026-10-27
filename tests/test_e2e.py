@@ -111,7 +111,7 @@ def test_broken_method_fails_one_table_and_alerts(migrated, ozon_api):
     statuses = {r[0]: r[1] for r in last_run(migrated)}
     assert statuses.pop("ozon_products") == "error"
     assert set(statuses.values()) == {"ok"} and len(statuses) == 8
-    assert any("ozon_products" in m and "404" in m for m in tg.sent)
+    assert any("Товары — ошибка" in m and "404" in m for m in tg.sent)
 
 
 def test_rate_limit_mid_cycle(migrated, ozon_api):
@@ -136,7 +136,7 @@ def test_sheet_failure_does_not_touch_db(migrated, ozon_api, monkeypatch):
     run = {r[0]: r[1] for r in last_run(migrated)}
     assert run.pop("gsheet") == "error" and set(run.values()) == {"ok"}
     assert all(n > 0 for n in counts(migrated).values())
-    assert any("gsheet" in m for m in tg.sent)
+    assert any("Google Таблица — ошибка" in m for m in tg.sent)
 
 
 def test_sandbox_runs_only_supported_tables(migrated, ozon_api):
@@ -154,7 +154,7 @@ def test_sandbox_runs_only_supported_tables(migrated, ozon_api):
     assert migrated.execute("SELECT offer_id, name FROM ozon_products ORDER BY 1").fetchall() == [
         ("136748", None), ("136749", None),
     ]
-    assert not any("упало" in m or "не обновлялись" in m for m in tg.sent)
+    assert not any(m.startswith(("❌", "⏰")) for m in tg.sent)
 
 
 def test_sandbox_skips_unsupported_table_request(migrated, ozon_api):

@@ -59,22 +59,85 @@ def stale_tables(conn: psycopg.Connection, tables: list[str], hours: int, now: d
     return [t for t in tables if last_ok.get(t) is None or last_ok[t] < threshold]
 
 
+TITLES = {
+    "ozon_warehouses": "Склады",
+    "ozon_delivery_methods": "Способы доставки",
+    "ozon_products": "Товары",
+    "ozon_product_prices": "Цены",
+    "ozon_stocks_rfbs": "Остатки FBS/rFBS по складам",
+    "ozon_stock_management": "Остатки FBO/FBS",
+    "ozon_actions": "Акции",
+    "ozon_action_candidates": "Кандидаты в акции",
+    "ozon_action_products": "Товары в акциях",
+    "gsheet": "Google Таблица",
+}
+
+ENVS = {"sandbox": "песочница", "prod": "боевой кабинет"}
+
+ERROR_LIMIT = 300
+
+
+def title(table: str) -> str:
+    return TITLES.get(table, table)
+
+
+def header(env: str) -> str:
+    return f"Ozon → БД ({ENVS.get(env, env)})"
+
+
+def changes(r: TableResult) -> str:
+    parts = []
+    if r.inserted:
+        parts.append(f"+{r.inserted} новых")
+    if r.updated:
+        parts.append(f"{r.updated} изменено")
+    if r.deleted:
+        parts.append(f"{r.deleted} удалено")
+    return ", ".join(parts) or "без изменений"
+
+
+def result_line(r: TableResult) -> str:
+    if r.status != "ok":
+        return f"❌ {title(r.table)} — ошибка: {(r.error or '')[:ERROR_LIMIT]}"
+    if r.table == "gsheet":
+        return f"📄 {title(r.table)} — выгружено строк: {r.updated}"
+    return f"📦 {title(r.table)} — получено {r.fetched} шт., {changes(r)}"
+
+
 def failure_message(env: str, failed: list[TableResult]) -> str:
-    lines = [f"❌ Ozon sync ({env}): упало таблиц: {len(failed)}"]
-    lines += [f"• {r.table}: {r.error}" for r in failed]
+    lines = [f"❌ {header(env)}: ошибки при обновлении ({len(failed)})", ""]
+    lines += [result_line(r) for r in failed]
     return "\n".join(lines)
 
 
 def stale_message(env: str, tables: list[str], hours: int) -> str:
-    return f"⏰ Ozon sync ({env}): не обновлялись дольше {hours} ч:\n" + "\n".join(f"• {t}" for t in tables)
+    lines = [f"⏰ {header(env)}: данные не обновлялись дольше {hours} ч", ""]
+    lines += [f"• {title(t)}" for t in tables]
+    return "\n".join(lines)
 
 
-def summary_message(env: str, results: list[TableResult]) -> str:
-    ok = sum(r.status == "ok" for r in results)
-    lines = [f"{'✅' if ok == len(results) else '⚠️'} Ozon sync ({env}): {ok}/{len(results)} таблиц ok"]
-    for r in results:
-        if r.status == "ok":
-            lines.append(f"• {r.table}: +{r.inserted} ~{r.updated} -{r.deleted}")
-        else:
-            lines.append(f"• {r.table}: ошибка")
+def cycle_failed_message(env: str, error: str) -> str:
+    return f"🔥 {header(env)}: синхронизация не выполнена\n\n{error[:ERROR_LIMIT]}"
+
+
+def summary_message(
+    env: str, results: list[TableResult], finished_at: datetime | None = None, duration: float | None = None
+) -> str:
+    tables = [r for r in results if r.table != "gsheet"]
+    ok = sum(r.status == "ok" for r in tables)
+    all_ok = all(r.status == "ok" for r in results)
+    if all_ok:
+        status = "все данные обновлены"
+    else:
+        status = f"обновлено таблиц {ok} из {len(tables)}"
+    lines = [f"{'✅' if all_ok else '⚠️'} {header(env)}: {status}"]
+    meta = []
+    if finished_at:
+        meta.append(finished_at.strftime("%d.%m.%Y %H:%M"))
+    if duration is not None:
+        meta.append(f"за {duration:.0f} с")
+    if meta:
+        lines.append(" · ".join(meta))
+    lines.append("")
+    lines += [result_line(r) for r in results]
     return "\n".join(lines)

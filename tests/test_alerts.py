@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 import psycopg
@@ -48,11 +49,40 @@ def test_telegram_disabled_without_chat():
     assert alerts.Telegram(Settings(_env_file=None)).send("x") is False
 
 
-def test_summary_and_failure_messages():
-    results = [TableResult("a", "ok", 1, 2, 3), TableResult("b", "error", error="boom")]
+def test_summary_message_all_ok():
+    results = [
+        TableResult("ozon_products", "ok", fetched=13),
+        TableResult("ozon_stock_management", "ok", 15, 2, 1, fetched=15),
+        TableResult("gsheet", "ok", updated=17),
+    ]
+    finished = datetime(2026, 10, 27, 18, 41, tzinfo=ZoneInfo("Europe/Moscow"))
+    assert alerts.summary_message("sandbox", results, finished, 3.4) == (
+        "✅ Ozon → БД (песочница): все данные обновлены\n"
+        "27.10.2026 18:41 · за 3 с\n"
+        "\n"
+        "📦 Товары — получено 13 шт., без изменений\n"
+        "📦 Остатки FBO/FBS — получено 15 шт., +15 новых, 2 изменено, 1 удалено\n"
+        "📄 Google Таблица — выгружено строк: 17"
+    )
+
+
+def test_summary_and_failure_with_errors():
+    results = [
+        TableResult("ozon_products", "ok", fetched=1),
+        TableResult("ozon_warehouses", "error", error="OzonError: 404"),
+        TableResult("gsheet", "error", error="PermissionError"),
+    ]
     summary = alerts.summary_message("prod", results)
-    assert "1/2" in summary and "a: +1 ~2 -3" in summary and "b: ошибка" in summary
-    assert "b: boom" in alerts.failure_message("prod", results[1:])
+    assert summary.startswith("⚠️ Ozon → БД (боевой кабинет): обновлено таблиц 1 из 2\n\n")
+    assert "❌ Склады — ошибка: OzonError: 404" in summary
+    failure = alerts.failure_message("prod", results[1:])
+    assert failure.startswith("❌ Ozon → БД (боевой кабинет): ошибки при обновлении (2)")
+    assert "❌ Google Таблица — ошибка: PermissionError" in failure
+
+
+def test_error_text_is_truncated():
+    line = alerts.result_line(TableResult("x", "error", error="e" * 1000))
+    assert len(line) < 400
 
 
 def test_schedule_times_parsing():
@@ -112,4 +142,4 @@ def test_cycle_failure_alerts_when_db_down(monkeypatch):
     monkeypatch.setattr(service.db, "connect", down)
     tg = FakeTelegram()
     assert service.run_cycle(settings(), client=object(), telegram=tg) is False
-    assert len(tg.sent) == 1 and "цикл упал" in tg.sent[0]
+    assert len(tg.sent) == 1 and "синхронизация не выполнена" in tg.sent[0]

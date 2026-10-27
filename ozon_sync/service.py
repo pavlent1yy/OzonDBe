@@ -1,4 +1,7 @@
+import time
 import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import structlog
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -30,6 +33,7 @@ def run_cycle(
     own_client = client is None
     client = client or OzonClient(settings)
     env = settings.ozon_env
+    started = time.monotonic()
     try:
         with db.connect(settings) as conn:
             ctx = Context(client, conn, settings.ozon_method_overrides)
@@ -49,11 +53,12 @@ def run_cycle(
             if stale:
                 telegram.send(alerts.stale_message(env, stale, settings.stale_after_hours))
             if settings.telegram_summary:
-                telegram.send(alerts.summary_message(env, results))
+                finished_at = datetime.now(ZoneInfo(settings.sync_timezone))
+                telegram.send(alerts.summary_message(env, results, finished_at, time.monotonic() - started))
             return not failed
     except Exception as e:
         log.exception("cycle_failed")
-        telegram.send(f"🔥 Ozon sync ({env}): цикл упал целиком: {type(e).__name__}: {e}")
+        telegram.send(alerts.cycle_failed_message(env, f"{type(e).__name__}: {e}"))
         return False
     finally:
         if own_client:

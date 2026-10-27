@@ -22,6 +22,7 @@ class TableResult:
     updated: int = 0
     deleted: int = 0
     error: str | None = None
+    fetched: int = 0
 
 
 def order(loaders: dict[str, Loader], selected: list[str]) -> list[Loader]:
@@ -74,4 +75,4 @@ def run_table(ctx: Context, ld: Loader, run_id: uuid.UUID) -> TableResult:
         return TableResult(ld.table, "error", error=error)
     db.log_finish(conn, log_id, status="ok", inserted=inserted, updated=updated, deleted=deleted)
     log.info("table_ok", table=ld.table, fetched=len(rows), inserted=inserted, updated=updated, deleted=deleted)
-    return TableResult(ld.table, "ok", inserted, updated, deleted)
+    return TableResult(ld.table, "ok", inserted, updated, deleted, fetched=len(rows))
