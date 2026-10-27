@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Состояние
 
-ТЗ: `docs/ТЗ остатки Ozon → Google Таблица + Telegram.docx`. Название файла устарело, внутри ТЗ на выгрузку в PostgreSQL. Решено: Postgres служит источником правды, плюс отдельным шагом выгружаем остатки в Google Таблицу. Сейчас готов этап 1 (каркас): клиент Ozon, миграция `sync_log`, compose.
+ТЗ: `docs/ТЗ остатки Ozon → Google Таблица + Telegram.docx`. Название файла устарело, внутри ТЗ на выгрузку в PostgreSQL. Решено: Postgres служит источником правды, плюс отдельным шагом выгружаем остатки в Google Таблицу. Все этапы плана готовы: 9 загрузчиков, расписание, Telegram, выгрузка в Sheets, тесты, README.
 
 ## Команды
 
@@ -47,7 +47,7 @@ docker compose up --build
 - **Общие колонки каждой таблицы данных**: `raw jsonb` (полный ответ по записи), `first_seen_at`, `updated_at`, `is_deleted`. Ключевые поля хранятся отдельными колонками.
 - **Пагинация** через `last_id`/offset до пустой страницы. Поле `total` не использовать: Ozon объявил его устаревшим.
 - **Ozon-клиент**: учитывать `Ratelimit-Remaining`. На 429 ждать `Retry-After` и повторять. На 5xx и сетевые ошибки делать до 3 повторов с экспоненциальной паузой.
-- **Режим работы** `OZON_ENV=sandbox|prod` переключается только конфигом. Prod авторизуется заголовками `Client-Id` + `Api-Key`, sandbox берёт OAuth client credentials через `api-seller-sandbox.ozon.ru/oauth/token`.
+- **Режим работы** `OZON_ENV=sandbox|prod|mock` переключается только конфигом. Prod авторизуется заголовками `Client-Id` + `Api-Key`, sandbox берёт OAuth client credentials через `api-seller-sandbox.ozon.ru/oauth/token`.
 - **Только чтение**: сервис ничего не пишет в кабинет Ozon.
 - **Секреты** хранятся только в `.env`, в репозитории лежит `.env.example`. Ключи не попадают в логи и в `sync_log`.
 - **Postgres** не слушает внешний интерфейс. Для аналитики заказчика есть отдельная роль только на чтение.
