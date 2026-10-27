@@ -36,6 +36,9 @@ def run_cycle(
     started = time.monotonic()
     try:
         with db.connect(settings) as conn:
+            interrupted = db.close_interrupted(conn)
+            if interrupted:
+                log.warning("interrupted_runs_closed", count=interrupted)
             ctx = Context(client, conn, settings.ozon_method_overrides)
             run_id = uuid.uuid4()
             results = runner.run(ctx, runner.order(loaders, selected), run_id)

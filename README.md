@@ -6,6 +6,12 @@ OzonDBe — сервис выгрузки данных магазина из Ozo
 складывает их в базу без дублей, ведёт журнал обновлений по каждой таблице,
 выгружает остатки в Google Таблицу и сообщает об ошибках в Telegram
 
+## Статус проекта
+
+Учебный проект по реальному заказу с FL.ru. Работает с песочницей Ozon:
+товары и остатки проверены на живых данных песочницы, остальные 7 таблиц —
+на фикстурах из документации и сквозных тестах
+
 ## Возможности
 
 На текущем этапе OzonDBe включает:
@@ -57,6 +63,7 @@ node_alerts --> node_tg
 ```
 
 ### Цикл синхронизации
+
 выглядит следующим образом:
 
 ```text
@@ -82,17 +89,17 @@ node_alerts --> node_tg
 
 ## Таблицы
 
-| Таблица | Данные | Метод API | Ключ |
-|---|---|---|---|
-| `ozon_warehouses` | склады продавца | `/v1/warehouse/list` | `warehouse_id` |
-| `ozon_delivery_methods` | способы доставки складов | `/v1/delivery-method/list` | `id` |
-| `ozon_products` | товары | `/v3/product/list` + `/v3/product/info/list` | `product_id` |
-| `ozon_product_prices` | цены и комиссии | `/v5/product/info/prices` | `product_id` |
-| `ozon_stocks_rfbs` | остатки FBS/rFBS по складам | `/v1/product/info/stocks-by-warehouse/fbs` | `sku + warehouse_id` |
-| `ozon_stock_management` | остатки FBO/FBS | `/v4/product/info/stocks` | `product_id + type` |
-| `ozon_actions` | акции | `GET /v1/actions` | `action_id` |
-| `ozon_action_candidates` | товары, доступные для акции | `/v2/actions/candidates` | `action_id + product_id` |
-| `ozon_action_products` | товары в акции | `/v2/actions/products` | `action_id + product_id` |
+| Таблица                  | Данные                      | Метод API                                    | Ключ                     |
+| ------------------------ | --------------------------- | -------------------------------------------- | ------------------------ |
+| `ozon_warehouses`        | склады продавца             | `/v1/warehouse/list`                         | `warehouse_id`           |
+| `ozon_delivery_methods`  | способы доставки складов    | `/v1/delivery-method/list`                   | `id`                     |
+| `ozon_products`          | товары                      | `/v3/product/list` + `/v3/product/info/list` | `product_id`             |
+| `ozon_product_prices`    | цены и комиссии             | `/v5/product/info/prices`                    | `product_id`             |
+| `ozon_stocks_rfbs`       | остатки FBS/rFBS по складам | `/v1/product/info/stocks-by-warehouse/fbs`   | `sku + warehouse_id`     |
+| `ozon_stock_management`  | остатки FBO/FBS             | `/v4/product/info/stocks`                    | `product_id + type`      |
+| `ozon_actions`           | акции                       | `GET /v1/actions`                            | `action_id`              |
+| `ozon_action_candidates` | товары, доступные для акции | `/v2/actions/candidates`                     | `action_id + product_id` |
+| `ozon_action_products`   | товары в акции              | `/v2/actions/products`                       | `action_id + product_id` |
 
 У каждой таблицы есть общие колонки: `raw`, `first_seen_at`, `updated_at`, `is_deleted`
 
@@ -130,7 +137,10 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Контейнер `app` применяет миграции и запускает планировщик. Postgres наружу не публикуется
+Контейнер `app` применяет миграции и запускает планировщик. Postgres наружу не публикуется.
+`DATABASE_URL` и путь к ключу Google внутри контейнера задаются в `docker-compose.yml`,
+значения из `.env` для них используются только при локальном запуске.
+`.env` и `secrets/` в образ не копируются, ключ Google подключается томом только на чтение
 
 Ручной запуск внутри контейнера:
 
@@ -197,7 +207,16 @@ GSHEET_ID=...
 
 ### Доступ к базе для аналитики
 
-Если задан `ANALYTICS_RO_PASSWORD`, миграция создаёт пользователя `analytics_ro` только на чтение
+Если задан `ANALYTICS_RO_PASSWORD`, миграция создаёт пользователя `analytics_ro` только на чтение.
+Пароль нужно задать до первого запуска: роль создаётся первой миграцией.
+Если база уже создана, роль можно добавить вручную:
+
+```sql
+CREATE ROLE analytics_ro LOGIN PASSWORD '...';
+GRANT USAGE ON SCHEMA public TO analytics_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_ro;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_ro;
+```
 
 ## Что делать при алерте
 
@@ -230,9 +249,3 @@ Postgres без Docker можно поднять так:
 ```bash
 uv run --with pgserver python -c "import pgserver; print(pgserver.get_server('.pg', cleanup_mode=None).get_uri())"
 ```
-
-## Статус проекта
-
-Учебный проект по реальному заказу с FL.ru. Работает с песочницей Ozon:
-товары и остатки проверены на живых данных песочницы, остальные 7 таблиц —
-на фикстурах из документации и сквозных тестах

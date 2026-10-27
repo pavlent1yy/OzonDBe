@@ -14,6 +14,15 @@ def connect(settings: Settings) -> psycopg.Connection:
     return psycopg.connect(settings.database_url, autocommit=True, connect_timeout=10)
 
 
+def close_interrupted(conn: psycopg.Connection, older_than_hours: int = 6) -> int:
+    return conn.execute(
+        """UPDATE sync_log SET status = 'error', finished_at = now(),
+           error = 'запуск прерван: процесс остановился до завершения'
+           WHERE status = 'running' AND started_at < now() - make_interval(hours => %s)""",
+        (older_than_hours,),
+    ).rowcount
+
+
 def log_start(conn: psycopg.Connection, run_id: uuid.UUID, table_name: str) -> int:
     row = conn.execute(
         "INSERT INTO sync_log (run_id, table_name, started_at, status) VALUES (%s, %s, %s, 'running') RETURNING id",

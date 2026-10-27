@@ -93,3 +93,12 @@ def test_db_error_rolls_back_only_that_table(items):
     good = Loader("items", ("a", "b"), ("a", "b", "name"), lambda ctx: rows((1, "x", "one")))
     results = runner.run(Context(None, items, {}), [bad, good], uuid.uuid4())
     assert [r.status for r in results] == ["error", "ok"]
+
+
+def test_interrupted_runs_closed(items):
+    old = db.log_start(items, uuid.uuid4(), "items")
+    items.execute("UPDATE sync_log SET started_at = now() - interval '7 hours' WHERE id = %s", (old,))
+    fresh = db.log_start(items, uuid.uuid4(), "items")
+    assert db.close_interrupted(items) == 1
+    rows = dict(items.execute("SELECT id, status FROM sync_log").fetchall())
+    assert rows == {old: "error", fresh: "running"}

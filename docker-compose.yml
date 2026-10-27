@@ -17,6 +17,9 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      GOOGLE_CREDENTIALS_FILE: /run/secrets/google-service-account.json
     volumes:
       - ./secrets:/run/secrets:ro
     depends_on:
